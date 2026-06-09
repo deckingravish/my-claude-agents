@@ -1,12 +1,23 @@
+import requests
+from urllib.parse import quote
+from xml.etree import ElementTree as ET
+
+
 def search_web(query: str, max_results: int = 5) -> str:
-    """Free web search via DuckDuckGo — no API key needed."""
+    """Free news search via Google News RSS — no API key needed."""
     try:
-        from duckduckgo_search import DDGS
-        with DDGS() as ddgs:
-            results = list(ddgs.text(query, max_results=max_results))
-        if not results:
+        url = f"https://news.google.com/rss/search?q={quote(query)}&hl=en-US&gl=US&ceid=US:en"
+        resp = requests.get(url, timeout=10)
+        resp.raise_for_status()
+        root = ET.fromstring(resp.content)
+        items = root.findall(".//item")[:max_results]
+        if not items:
             return "No results found."
-        lines = [f"- {r['title']}: {r['body'][:200]}" for r in results]
+        lines = []
+        for item in items:
+            title = item.findtext("title", "")
+            desc  = (item.findtext("description", "") or "")[:200]
+            lines.append(f"- {title}: {desc}")
         return "\n".join(lines)
     except Exception as e:
         return f"Web search failed: {str(e)}"
